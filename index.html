@@ -1,0 +1,476 @@
+<html>
+
+<head>
+    <title>Bikin Jadwal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            background-image: url('https://images.unsplash.com/photo-1548222606-6c4f581fd09d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1497&q=80');
+            background-size: cover;
+        }
+
+        #days {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .day {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .day h2 {
+            text-align: center;
+            margin: 0;
+            padding: 10px 0;
+            color: #fff;
+        }
+
+        #schedule {
+            padding-top: 36px;
+        }
+
+        .schedule {
+            display: flex;
+            flex-direction: column;
+            margin: 10px 0;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .schedule__name {
+            font-weight: 600;
+        }
+
+        .schedule__lecturer {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .schedule__time {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .schedule__room {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        /* modal */
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        #modal.is-active {
+            display: block;
+        }
+
+        .modal__overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal__body {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal__header {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal__title {
+            flex: 1;
+            margin: 0;
+        }
+
+        .modal__close {
+            border: none;
+            background-color: transparent;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal__content {
+            padding: 10px;
+        }
+
+        .form-group {
+            margin: 10px 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #333;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .form-group button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #333;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .form-group button:hover {
+            background-color: #666;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14"></script>
+    <script src="dom-to-image.min.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div id="buttons">
+            <button @click="createSchedule">Tambah Jadwal</button>
+            <button @click="clearSchedules">Hapus Semua Jadwal</button>
+            <button @click="saveAsImage">Simpan Sebagai Gambar</button>
+            <button @click="changeBackground">Ubah Background</button>
+        </div>
+        <div id="schedule">
+            <div id="days">
+                <div class="day" v-for="day in days">
+                    <h2>{{ day }}</h2>
+                    <div v-for="schedule in groupedSchedules[day]">
+                        <div class="schedule" @mouseover="selectedSchedule = schedule"
+                            @mouseleave="selectedSchedule = null">
+                            <!-- btn edit + delete -->
+                            <div v-show="selectedSchedule && schedule.id == selectedSchedule.id">
+                                <button @click="editSchedule(schedule.id)">Edit</button>
+                                <button @click="deleteSchedule(schedule.id)">Delete</button>
+                            </div>
+                            <div class="schedule__name">{{ schedule.name }}</div>
+                            <div class="schedule__lecturer">{{ schedule.lecturer }}</div>
+                            <div class="schedule__time">{{ schedule.time }}</div>
+                            <div class="schedule__room">{{ schedule.room }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- modal -->
+        <div id="modal">
+            <div class="modal__overlay" @click="closeModal"></div>
+            <div class="modal__body">
+                <div class="modal__header">
+                    <h2 class="modal__title">{{ modalTitle }}</h2>
+                    <button class="modal__close" @click="closeModal">X</button>
+                </div>
+                <div class="modal__content">
+                    <input type="hidden" name="id" v-model="id">
+                    <div class="form-group">
+                        <label for="name">Nama Mata Kuliah</label>
+                        <input type="text" id="name" v-model="name">
+                    </div>
+                    <div class="form-group">
+                        <label for="lecturer">Dosen</label>
+                        <input type="text" id="lecturer" v-model="lecturer">
+                    </div>
+                    <div class="form-group">
+                        <label for="day">Hari</label>
+                        <select id="day" v-model="day">
+                            <option v-for="day in days" :value="day">{{ day }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="time">Jam</label>
+                        <input type="text" id="time" v-model="time">
+                    </div>
+                    <div class="form-group">
+                        <label for="room">Ruangan</label>
+                        <input type="text" id="room" v-model="room">
+                    </div>
+                    <div class="form-group">
+                        <button @click="call">{{modalButton}}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                schedules: [],
+                name: '',
+                lecturer: '',
+                day: '',
+                time: '',
+                room: '',
+                id: '',
+                selectedSchedule: {},
+                modalTitle: 'Tambah Jadwal',
+                modalButton: 'Tambah',
+                modalAction: 'storeSchedule',
+                days: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'],
+            },
+            methods: {
+                call() {
+                    if (this.modalAction === 'storeSchedule') {
+                        this.storeSchedule()
+                    } else if (this.modalAction === 'updateSchedule') {
+                        this.updateSchedule()
+                    }
+                },
+                saveToLocal() {
+                    localStorage.setItem('bikin-jadwal', JSON.stringify(this.schedules))
+                },
+                openModal() {
+                    document.getElementById('modal').classList.add('is-active')
+                },
+                closeModal() {
+                    document.getElementById('modal').classList.remove('is-active')
+                },
+                createSchedule() {
+                    this.openModal()
+                    this.modalTitle = 'Tambah Jadwal'
+                    this.modalButton = 'Tambah'
+                    this.modalAction = 'storeSchedule'
+                    this.id = ''
+                    this.name = ''
+                    this.lecturer = ''
+                    this.day = ''
+                    this.time = ''
+                    this.room = ''
+                },
+                storeSchedule() {
+                    this.schedules.push({
+                        id: this.schedules.length + 1,
+                        name: this.name,
+                        lecturer: this.lecturer,
+                        day: this.day,
+                        time: this.time,
+                        room: this.room,
+                    })
+                    this.saveToLocal()
+                    this.closeModal()
+                },
+                editSchedule(id) {
+                    const schedule = this.schedules.find(schedule => schedule.id === parseInt(id))
+                    this.modalTitle = 'Edit Jadwal'
+                    this.modalButton = 'Simpan'
+                    this.modalAction = 'updateSchedule'
+                    this.id = schedule.id
+                    this.name = schedule.name
+                    this.lecturer = schedule.lecturer
+                    this.day = schedule.day
+                    this.time = schedule.time
+                    this.room = schedule.room
+                    this.openModal()
+                },
+                updateSchedule() {
+                    const schedule = this.schedules.find(schedule => schedule.id === parseInt(this.id))
+                    schedule.name = this.name
+                    schedule.lecturer = this.lecturer
+                    schedule.day = this.day
+                    schedule.time = this.time
+                    schedule.room = this.room
+                    this.saveToLocal()
+                    this.closeModal()
+                },
+                deleteSchedule(id) {
+                    this.schedules = this.schedules.filter(schedule => schedule.id !== id)
+                    this.saveToLocal()
+                },
+                clearSchedules() {
+                    this.schedules = []
+                    this.saveToLocal()
+                },
+                saveAsImage() {
+                    document.getElementById('buttons').style.display = 'none'
+                    domtoimage.toJpeg(document.getElementsByTagName('body')[0])
+                    .then(function (dataUrl) {
+                        var link = document.createElement('a');
+                        link.download = 'jadwal.jpeg';
+                        link.href = dataUrl;
+                        link.click();
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    });
+                },
+                changeBackground() {
+                    const url = prompt('Masukkan URL gambar')
+                    document.getElementsByTagName('body')[0].style.backgroundImage = `url(${url})`
+                }
+            },
+            computed: {
+                groupedSchedules() {
+                    const groupedSchedules = {}
+                    this.schedules.sort((a, b) => {
+                        if (this.days.indexOf(a.day) < this.days.indexOf(b.day)) {
+                            return -1
+                        }
+                        if (this.days.indexOf(a.day) > this.days.indexOf(b.day)) {
+                            return 1
+                        }
+                        if (a.time < b.time) {
+                            return -1
+                        }
+                        if (a.time > b.time) {
+                            return 1
+                        }
+                        return 0
+                    })
+                    this.days.forEach(day => {
+                        groupedSchedules[day] = this.schedules.filter(schedule => schedule.day === day)
+                    })
+                    return groupedSchedules
+                },
+            },
+            mounted() {
+                // check for localStorage
+                if (localStorage.getItem('bikin-jadwal')) {
+                    this.schedules = JSON.parse(localStorage.getItem('bikin-jadwal'))
+                } else {
+                    this.schedules = [
+                        {
+                            "id": 1,
+                            "name": "Pemrograman Sistem Tertanam B",
+                            "lecturer": "Bangun Wijayanto",
+                            "day": "Senin",
+                            "time": "08:50 - 10:35",
+                            "room": "GEDUNG TEKNIK E 204",
+                        },
+                        {
+                            "id": 2,
+                            "name": "Komputer dan Masyarakat A",
+                            "lecturer": "Swahesti Puspita Rahayu",
+                            "day": "Senin",
+                            "time": "13:00 - 14:45",
+                            "room": "GEDUNG TEKNIK E 104",
+                        },
+                        {
+                            "id": 3,
+                            "name": "Infrastruktur Teknologi Informasi B",
+                            "lecturer": "Dadang Iskandar",
+                            "day": "Kamis",
+                            "time": "09:45 - 13:50",
+                            "room": "GEDUNG TEKNIK E 304",
+                        },
+                        {
+                            "id": 4,
+                            "name": "Teknologi Multimedia B",
+                            "lecturer": "Teguh Cahyono",
+                            "day": "Kamis",
+                            "time": "13:00 - 14:45",
+                            "room": "GEDUNG TEKNIK C 102",
+                        },
+                        {
+                            "id": 5,
+                            "name": "CRM A",
+                            "lecturer": "Nur Chasanah",
+                            "day": "Kamis",
+                            "time": "13:55 - 16:50",
+                            "room": "GEDUNG TEKNIK E 304",
+                        },
+                        {
+                            "id": 6,
+                            "name": "Bahasa Indonesia B",
+                            "lecturer": "Gita Anggria Resticka",
+                            "day": "Jumat",
+                            "time": "08:50 - 10:35",
+                            "room": "GEDUNG TEKNIK E 304",
+                        },
+                        {
+                            "id": 7,
+                            "name": "Praktikum Pemrograman Sistem Tertanam G",
+                            "lecturer": "Bangun Wijayanto",
+                            "day": "Jumat",
+                            "time": "09:45 - 12:25",
+                            "room": "Lab. Multimedia",
+                        },
+                        {
+                            "id": 8,
+                            "name": "Kerja Praktek A",
+                            "lecturer": "Yogiek Indra Kurniawan",
+                            "day": "Jumat",
+                            "time": "19:25 - 21:10",
+                            "room": "GEDUNG TEKNIK F116",
+                        },
+                        {
+                            "id": 9,
+                            "name": "Praktikum Sistem Operasi C",
+                            "lecturer": "Nur Chasanah",
+                            "day": "Selasa",
+                            "time": "09:45 - 12:25",
+                            "room": "Laboratorium Pemrograman 1",
+                        },
+                        {
+                            "id": 10,
+                            "name": "Metode Penelitian Informatika B",
+                            "lecturer": "Yogiek Indra Kurniawan",
+                            "day": "Rabu",
+                            "time": "11:35 - 13:50",
+                            "room": "GEDUNG TEKNIK E 301",
+                        },
+                        {
+                            "id": 11,
+                            "name": "Sistem Operasi B",
+                            "lecturer": "Nur Chasanah",
+                            "day": "Senin",
+                            "time": "07:00 - 09:40",
+                            "room": "GEDUNG TEKNIK E 301",
+                        },
+                    ];
+                    this.saveToLocal()
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
