@@ -186,6 +186,7 @@
             <button @click="clearSchedules">Hapus Semua Jadwal</button>
             <button @click="saveAsImage">Simpan Sebagai Gambar</button>
             <button @click="changeBackground">Ubah Background</button>
+            <button @click="resetDefault">Reset Default</button>
         </div>
         <div id="schedule">
             <div id="days">
@@ -352,6 +353,10 @@
                 changeBackground() {
                     const url = prompt('Masukkan URL gambar')
                     document.getElementsByTagName('body')[0].style.backgroundImage = `url(${url})`
+                },
+                resetDefault() {
+                    localStorage.removeItem('bikin-jadwal');
+                    document.location.reload();
                 }
             },
             computed: {
